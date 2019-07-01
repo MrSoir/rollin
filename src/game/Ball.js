@@ -1,0 +1,11 @@
+const glMatrix = require('gl-matrix');
+
+class Ball{
+	constructor(diameter = 1, mass = 1, vel = glMatrix.vec3.fromValues(0,0,0)){
+		this.diam = diameter;
+		this.mass = mass;
+		this.vel = vel;
+	}
+}
+
+module.export = Ball;

@@ -1,0 +1,141 @@
+const glMatrix = require('gl-matrix');
+const GlFunctionsInstantiator = require('./webgl/glFunctions');
+const sphereGen = require('./game/SphereGenerator');
+const vec3 = require('./Vector');
+const PointsDrawer = require('./webgl/APointsDrawer');
+const StaticFunctions = require('./StaticFunctions');
+
+
+console.log('main.js');
+
+let triangles = sphereGen.generate(2);
+console.log('triangles: ', triangles);
+
+
+//-------------------------------------------------------------
+
+class Rollin{
+
+	constructor(canvasID){
+		let camera = {
+			cameraPos: [0, 0, -20],
+			viewTarget: [0, 0, 0]
+		}
+		
+		this.glMeta = {
+			backgroundColor: [0, 255, 0, 255],
+			camera: camera,
+		};
+		
+		if(!canvasID){
+			canvasID = 'canvas';
+		}
+		
+		var canvas = document.getElementById(canvasID);
+		this.gl = canvas.getContext('webgl2', {antialias: true, preserveDrawingBuffer: false});
+		
+		if(!this.gl){
+			console.log('no gl-context!');
+			return;
+		}
+		
+		this.glFunctions = new GlFunctionsInstantiator(this.gl);
+		
+		this.clearCanvas();
+		
+		let points = [].concat.apply([], triangles);
+
+		points = points.map(v3 => v3.vals);
+		this.pointsDrawer = new PointsDrawer(this.canvasID, camera, points);
+		//this.pointsDrawer = new PointsDrawer(this.canvasID, camera, triangles[0].map(v3=>v3.addScalar(500).vals));
+		//this.pointsDrawer = new PointsDrawer(this.canvasID, camera, triangles.map(polygon => polygon.map(v3 => v3.vals)));//[0].map(v3=>v3.vals));
+		
+		this.draw();
+		this.startAnimation();
+	}
+	
+	supportsWebGL2(){
+		return !!this.gl;
+	}
+	
+	clearCanvas(){
+		this.gl.clearColor(...this.glMeta.backgroundColor);
+		this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+		this.paintBackground = true;
+	}
+
+	draw(){		
+		this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
+		
+		this.resizeCanvasToDisplaySize();
+		
+		this.clearCanvas();
+		
+		this.pointsDrawer.drawPoints();
+	}
+	
+	resizeCanvasToDisplaySize(multiplier) {
+		let canvas = this.gl.canvas;
+		multiplier = multiplier || 1;
+		const realToCSSPixels = window.devicePixelRatio;
+		const width  = Math.floor(canvas.clientWidth  * realToCSSPixels);
+		const height = Math.floor(canvas.clientHeight * realToCSSPixels);
+		if (canvas.width !== width ||  canvas.height !== height) {
+			canvas.width  = width;
+			canvas.height = height;
+			this.gl.viewport(0, 0, canvas.width, canvas.height);
+	   	return true;
+		}
+	 	return false;
+	}
+	
+	onCanvasResize(){
+		this.resizeCanvasToDisplaySize();
+	}
+	
+	updateCameraPos(cameraPos){
+		this.glMeta.camera.cameraPos = cameraPos;
+		this.pointsDrawer.updateCamera(this.glMeta.camera);
+	}
+	
+	startAnimation(){
+		const radPerSecond = Math.PI * 0.1;
+		let cntr = 0;
+		
+		let animstarttime = undefined;
+		let step = function(timestamp) {
+			
+			let tx = 0;
+			if(!animstarttime){
+				animstarttime = timestamp;
+			}else{
+				tx = timestamp - animstarttime;
+			}
+			
+			let rad = tx / (radPerSecond * 1000);
+			
+			const fctr = 0.01;
+			let camZ = -50 * Math.cos(cntr * fctr);
+			let camX = -50 * Math.sin(cntr * fctr);
+			const newCameraPos = [camX, 0, camZ];
+			
+			this.updateCameraPos( newCameraPos );
+			
+			this.draw();
+			
+			if(cntr++ > 2000){
+				return;
+			}
+						
+			window.requestAnimationFrame(step);
+		}
+		step = step.bind(this);
+		window.requestAnimationFrame(step);
+	}
+
+}
+
+const rollin = new Rollin('canvas');
+
+
+
